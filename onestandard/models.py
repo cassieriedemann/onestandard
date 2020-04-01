@@ -1,10 +1,9 @@
 """Models representing Standard File based objects."""
 
-
-import json
 from uuid import uuid4
 from datetime import datetime
-
+from datetime import timezone
+import json
 
 ALLOWED_TYPES = ('tag', 'note')
 
@@ -29,12 +28,13 @@ class WrongTypeException(Exception):
 
 class Standard(object):
     """The base object from which the others shall derive."""
-    def __init__(self, title, content_type, guid=None):
+    def __init__(self, title, content_type, created_at=datetime.utcnow(), guid=None):
         self.content_type = content_type.lower()
         self._validate_type()
         self.title = title
         self.guid = guid if guid else str(uuid4())
-        self.created_at = self.updated_at = datetime.utcnow().isoformat() + 'Z'
+        self.created_at = created_at.isoformat() + 'Z'
+        self.updated_at = datetime.utcnow().isoformat() + 'Z'
         self.references = []
         self.model = {
             "uuid": self.guid,
@@ -93,10 +93,67 @@ class Tag(Standard):
 
 class Note(Standard):
     """A Standard Notes Note object, used to define notes."""
-    def __init__(self, title, text, guid=None):
-        super().__init__(title=title, content_type='Note')
+    def __init__(self, title, text, headers, guid=None):
+        super().__init__(title=title, content_type='Note', created_at=Note.datetime_from_headers(headers))
         self.text = text
         self.model['content']['text'] = self.text
+
+        # try:
+        #     self.datetime_from_headers(headers)
+        # except:
+        #     print('error parsing date')
+
+    # def __init__(self, title, text, headers, guid=None):
+    #     super.__init__(title=title, content_type='Note')
+    #     self.text = text
+    #     self.model['content']['text'] = self.text
+    #     self.created_at = datetime_from_headers(headers)
+
+    @staticmethod
+    def datetime_from_headers(headers):
+        date_string = ''
+        print('datetime_from_headers')
+        for tag in headers:
+            if tag.string.isspace():
+                # print(f'tag string is space, tag string is linebreak {tag.string.isspace()}')
+                continue
+
+            # print(f'raw text [{tag.string}]')
+            # text = tag.string.replace('=', '\n')
+            # print(f'replaced = [{text}]')
+            # text = text.replace('\n', '')
+            # print(f'removed linebreaks [{text}]')
+            # text = text.replace(',', ', ')
+
+            print(f'raw text [{tag.string}]')
+            text = tag.string.replace('\n', ' ').strip()
+            print(f'removed linebreaks [{text}]')
+            text = text.replace('= ', '')
+            print(f'removed = [{text}]')
+            text = text.replace(',', ', ')
+            print(f'added spaces between commas [{text}]')
+            if (text):
+                print(f'adding text [ {text} ]')
+                date_string += f' {text} '
+            # print(f'{unicode(tag.string)}')
+        
+        date_string = date_string.strip()
+
+        try:
+            print('')
+            print('---result---')
+            print(date_string)
+            created_at = datetime.strptime(date_string, '%A, %B %d, %Y %I:%M %p')
+            print(created_at)
+            print('---result---')
+            print('')
+            return created_at
+        except:
+            # e = sys.exc_info()[0]
+            print('error parsing date')
+            print('---result---')
+            print('')
+            # print(e)
 
 
 class Package(object):
@@ -134,6 +191,8 @@ class Package(object):
         :returns: None
 
         """
+        print(f'Self {self}, Filepath {filepath}')
         with open(filepath, 'w') as outfile:
+            print(f'json.dump({self}, {outfile}, {4})')
             json.dump(self.model, outfile, indent=4)
         return

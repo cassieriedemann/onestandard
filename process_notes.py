@@ -19,9 +19,11 @@ if __name__ == '__main__':
     for title, headers, content in notes:
         print("===========")
         raw_note = processor.process_note(title, headers, content)
-        #print(raw_note.markdown)
-        note = models.Note(raw_note.title, raw_note.markdown)
+        note = models.Note(raw_note.title, raw_note.markdown, raw_note.headers)
+        # note.datetime_from_headers(raw_note.headers)
         models.link(note, tag)
+        print(note.created_at)
         package.add(note)
     
-    package.write('package.json')
+    # print(package.json())
+    package.write(f'{sys.argv[1]}.json')
